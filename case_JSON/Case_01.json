@@ -1,0 +1,12 @@
+{
+  "case_id": "case_01",
+  "personality": "extrovert",
+  "case_name": "急性胃炎初诊",
+  "personality_params": {
+    "base_anxiety_decay": -0.05,
+    "response_length_min": 20,
+    "response_length_max": 50
+  },
+  "initial_anxiety": 0.6,
+  "symptoms": "这两天胃疼得厉害，吃什么都想吐"
+}

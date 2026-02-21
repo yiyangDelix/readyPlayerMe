@@ -1,0 +1,12 @@
+{
+  "case_id": "case_02",
+  "case_name": "紧张性头痛初诊",
+  "personality": "introvert",
+  "personality_params": {
+    "base_anxiety_decay": -0.03,
+    "response_length_min": 5,
+    "response_length_max": 35
+  },
+  "initial_anxiety": 0.7,
+  "symptoms": "最近两周总是头痛，后脑勺紧绷感，睡不好觉"
+}
