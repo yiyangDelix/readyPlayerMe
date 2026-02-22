@@ -1,3 +1,11 @@
+using CaseData;
+using PersonalityParams;
+
+
+
+// 负责管理患者的焦虑状态，提供接口供LLMService调用，并控制动画表现
+// 和PatientState的区别：PatientState是纯数据类，包含患者的状态和逻辑
+// AnxietyManager是MonoBehaviour组件，负责与Unity交互，控制动画，并提供接口供LLMService调用。
 public class AnxietyManager : MonoBehaviour
 {
     [Header("Components")]

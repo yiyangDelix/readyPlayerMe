@@ -2,7 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
+using CaseData;
+using PersonalityParams;
 
+
+// 负责管理患者的焦虑状态，提供接口供LLMService调用，并控制动画表现
 [Serializable]
 public class PatientState
 {
@@ -68,11 +72,7 @@ public class PatientState
         float oldAnxiety = current_anxiety;
 
         // ===== 核心改进：变化幅度衰减机制 =====
-        // 原理：越焦虑的人，情绪越难再波动（无论升高还是降低）
-        // 公式：delta * (1 - current_anxiety) 或 delta * (1 - current_anxiety^2)
-
-        // 选项1：线性衰减 (1 - anxiety)
-        // 焦虑0.9时，衰减因子=0.1，变化幅度只剩10%
+        // 原理：越焦虑的人，情绪越难再升高，但越容易下降
         float attenuationFactor;
         if (deltaFromLLM > 0)
         {
@@ -84,12 +84,6 @@ public class PatientState
             // 焦虑下降时：越焦虑越容易下降
             attenuationFactor = current_anxiety;
         }
-
-        // 选项2：平方衰减 (1 - anxiety^2) - 更平缓的起始衰减
-        // float attenuationFactor = 1 - (current_anxiety * current_anxiety);
-
-        // 选项3：指数衰减 - 更陡峭的高端衰减
-        // float attenuationFactor = Mathf.Exp(-current_anxiety * 2);
 
         // 应用衰减
         float adjustedDelta = deltaFromLLM * attenuationFactor;
@@ -148,62 +142,73 @@ public class PatientState
         StringBuilder prompt = new StringBuilder();
 
         // 1. 角色设定
-        prompt.AppendLine("# 角色设定");
-        prompt.AppendLine("你扮演一位前来就诊的患者，正在医生的诊室里进行初次问诊。");
-        prompt.AppendLine("重要限制：你没有接受过任何医学教育，对医学术语完全不了解。");
+        // # 角色设定
+        prompt.AppendLine("# Character settings");
+        // 你扮演一位前来就诊的患者，正在医生的诊室里进行初次问诊。
+        prompt.AppendLine("You play a patient who has come to the doctor for an initial consultation in the doctor's office.");
+        // 重要限制：你没有接受过任何医学教育，对医学术语完全不了解。
+        prompt.AppendLine("Important constraints: You have not received any medical education and do not understand medical terminology.");
         prompt.AppendLine();
 
         // 2. 当前状态
-        prompt.AppendLine("## 当前患者档案");
-        prompt.AppendLine($"身体状况：{symptoms}");
-        prompt.AppendLine($"性格类型：{(personality == "extrovert" ? "外向型" : "内向型")}");
-        prompt.AppendLine($"当前焦虑程度：{GetAnxietyLevel()} ({current_anxiety:F2})");
+        // ## 当前患者档案
+        prompt.AppendLine("## Current patient profile");
+        // 身体状况
+        prompt.AppendLine($"physical condition: {symptoms}");
+        // 性格类型
+        prompt.AppendLine($"Personality type: {(personality == "extrovert" ? "extroverted" : "introverted")}");
+        // 当前焦虑程度
+        prompt.AppendLine($"Current anxiety level: {GetAnxietyLevel()} ({current_anxiety:F2})");
 
         Vector2Int lengthRange = GetResponseLengthRange();
-        prompt.AppendLine($"回答长度要求：{lengthRange.x}到{lengthRange.y}字之间");
+        // 回答长度要求
+        prompt.AppendLine($"Response length range: {lengthRange.x} to {lengthRange.y} characters");
         prompt.AppendLine();
 
         // 3. 性格特征强化
         if (personality == "extrovert")
         {
-            prompt.AppendLine("你是外向型患者：");
-            prompt.AppendLine("- 表达方式：主动、直白、话多");
-            prompt.AppendLine("- 信息提供：主动补充医生没问到的信息");
-            prompt.AppendLine("- 态度：信任医生，积极配合");
+            // 外向型患者
+            prompt.AppendLine("You are an extroverted patient:");
+            prompt.AppendLine("- Expression style: proactive, direct, talkative");
+            prompt.AppendLine("- Information provision: proactively supplement information not asked by the doctor");
+            prompt.AppendLine("- Attitude: trust the doctor and cooperate actively");
         }
         else
         {
-            prompt.AppendLine("你是内向型患者：");
-            prompt.AppendLine("- 表达方式：简短、犹豫、被动");
-            prompt.AppendLine("- 信息提供：只回答直接提问，且很简短");
-            prompt.AppendLine("- 态度：害怕医院，对医生有抵触");
+            // 内向型患者
+            prompt.AppendLine("You are an introverted patient:");
+            prompt.AppendLine("- Expression style: brief, hesitant, passive");
+            prompt.AppendLine("- Information provision: only answer direct questions and keep responses short");
+            prompt.AppendLine("- Attitude: afraid of the hospital and resistant to the doctor");
         }
         prompt.AppendLine();
 
         // 4. 最近的对话历史（最后3轮，帮助保持上下文连贯）
         if (dialogue_history.Count > 0)
         {
-            prompt.AppendLine("## 最近的对话历史");
+            // ## 最近的对话历史
+            prompt.AppendLine("## Recent dialogue history (last 3 turns)");
             int startIdx = Math.Max(0, dialogue_history.Count - 3);
             for (int i = startIdx; i < dialogue_history.Count; i++)
             {
                 var turn = dialogue_history[i];
-                prompt.AppendLine($"医生：{turn.doctor}");
-                prompt.AppendLine($"患者：{turn.patient}");
+                prompt.AppendLine($"Doctor: {turn.doctor}");
+                prompt.AppendLine($"Patient: {turn.patient}");
             }
             prompt.AppendLine();
         }
 
         // 5. 医生当前的话
-        prompt.AppendLine($"## 医生现在说");
+        prompt.AppendLine($"## Doctor's current speech");
         prompt.AppendLine(doctorSpeech);
         prompt.AppendLine();
 
         // 6. 输出格式要求
-        prompt.AppendLine("## 输出格式");
-        prompt.AppendLine("请严格按照以下JSON格式返回（不要包含其他文字）：");
+        prompt.AppendLine("## Output format");
+        prompt.AppendLine("Please strictly return in the following JSON format (do not include any other text):");
         prompt.AppendLine(@"{");
-        prompt.AppendLine("  \"response_text\": \"你的回答内容\",");
+        prompt.AppendLine("  \"response_text\": \"your response content\",");
         prompt.AppendLine("  \"anxiety_delta\": -0.15,");
         prompt.AppendLine("  \"anxiety_level\": \"none/mild/significant/extreme\",");
         prompt.AppendLine("  \"understands\": true/false");

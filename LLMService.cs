@@ -4,16 +4,12 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Networking;
 using System.Text;
+using CaseData;
+using PersonalityParams;
+using PatientResponse;
 
-[Serializable]
-public class PatientResponse
-{
-    public string response_text;
-    public float anxiety_delta;
-    public string anxiety_level;
-    public bool understands;
-}
 
+// 负责与LLM交互，获取患者回应，并将结果传递给AnxietyManager
 public class LLMService : MonoBehaviour
 {
     [Header("Configuration")]
@@ -63,9 +59,9 @@ public class LLMService : MonoBehaviour
 
     // 公开方法：发送医生说的话，获取患者回应
     public async Task<string> SendDoctorSpeech(string doctorSpeech)
-{
-    return await GetPatientResponse(doctorSpeech);
-}
+    {
+        return await GetPatientResponse(doctorSpeech);
+    }
 
     private async System.Threading.Tasks.Task<string> GetPatientResponse(string doctorSpeech)
     {
