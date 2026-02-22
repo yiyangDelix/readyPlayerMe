@@ -14,25 +14,6 @@ public class PatientResponse
     public bool understands;
 }
 
-[Serializable]
-public class CaseData
-{
-    public string case_id;
-    public string personality;
-    public string case_name;
-    public PersonalityParams personality_params;
-    public float initial_anxiety;
-    public string symptoms;
-}
-
-[Serializable]
-public class PersonalityParams
-{
-    public float base_anxiety_decay;
-    public int response_length_min;
-    public int response_length_max;
-}
-
 public class LLMService : MonoBehaviour
 {
     [Header("Configuration")]
@@ -81,11 +62,10 @@ public class LLMService : MonoBehaviour
     }
 
     // 公开方法：发送医生说的话，获取患者回应
-    public async void SendDoctorSpeech(string doctorSpeech, System.Action<string> onResponse)
-    {
-        string patientResponse = await GetPatientResponse(doctorSpeech);
-        onResponse?.Invoke(patientResponse);
-    }
+    public async Task<string> SendDoctorSpeech(string doctorSpeech)
+{
+    return await GetPatientResponse(doctorSpeech);
+}
 
     private async System.Threading.Tasks.Task<string> GetPatientResponse(string doctorSpeech)
     {
@@ -103,6 +83,11 @@ public class LLMService : MonoBehaviour
 
         // 3. 解析响应
         PatientResponse response = JsonUtility.FromJson<PatientResponse>(jsonResponse);
+        if (response == null || string.IsNullOrEmpty(response.response_text))
+        {
+            Debug.LogError("Failed to parse LLM response");
+            return "Failed to parse LLM response";
+        }
 
         // 4. 验证回答长度
         Vector2Int lengthRange = anxietyManager.GetResponseLengthRange();
@@ -122,29 +107,6 @@ public class LLMService : MonoBehaviour
         );
 
         return response.response_text;
-    }
-
-    private string BuildPrompt(string doctorSpeech, Vector2Int lengthRange)
-    {
-        // 从模板构建完整的system prompt
-        string prompt = systemPromptTemplate
-            .Replace("{symptoms}", currentCase.symptoms)
-            .Replace("{personality_type}", currentCase.personality == "extrovert" ? "extrovert" : "introvert")
-            .Replace("{anxiety_level}", anxietyManager.CurrentAnxietyLevel) // 这里现在会返回none/mild/significant/extreme
-            .Replace("{min_length}", lengthRange.x.ToString())
-            .Replace("{max_length}", lengthRange.y.ToString());
-
-        // 添加性格特定的额外提示
-        if (currentCase.personality == "extrovert")
-        {
-            prompt += "\n\nRemember that you are an extroverted patient: speak frankly, proactively provide information, and trust your doctor.";
-        }
-        else
-        {
-            prompt += "\n\nRemember that you are an introverted patient: speak briefly and hesitantly, respond passively, and be wary of the hospital environment.";
-        }
-
-        return prompt;
     }
 
     // 手动设置病例（用于调试）

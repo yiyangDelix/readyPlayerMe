@@ -30,7 +30,7 @@ public class PatientState
 
         // 赋值
         case_id = caseData.case_id;
-        case_name = case_data.case_name;
+        case_name = caseData.case_name;
         personality = caseData.personality;
         personality_params = caseData.personality_params;
         initial_anxiety = caseData.initial_anxiety;
@@ -59,13 +59,47 @@ public class PatientState
     }
 
     // 更新状态
-    public void UpdateState(float deltaAnxiety, string doctorSpeech, string patientSpeech, bool understands)
+    public void UpdateState(float deltaFromLLM, string anxietyLevelFromLLM,
+                        string doctorSpeech, string patientSpeech, bool understands)
     {
         conversation_turn++;
 
-        // 更新焦虑值
+        // 记录变化前的焦虑值
         float oldAnxiety = current_anxiety;
-        current_anxiety = Mathf.Clamp01(current_anxiety + deltaAnxiety);
+
+        // ===== 核心改进：变化幅度衰减机制 =====
+        // 原理：越焦虑的人，情绪越难再波动（无论升高还是降低）
+        // 公式：delta * (1 - current_anxiety) 或 delta * (1 - current_anxiety^2)
+
+        // 选项1：线性衰减 (1 - anxiety)
+        // 焦虑0.9时，衰减因子=0.1，变化幅度只剩10%
+        float attenuationFactor;
+        if (deltaFromLLM > 0)
+        {
+            // 焦虑上升时：越焦虑越难再升
+            attenuationFactor = 1 - current_anxiety;
+        }
+        else
+        {
+            // 焦虑下降时：越焦虑越容易下降
+            attenuationFactor = current_anxiety;
+        }
+
+        // 选项2：平方衰减 (1 - anxiety^2) - 更平缓的起始衰减
+        // float attenuationFactor = 1 - (current_anxiety * current_anxiety);
+
+        // 选项3：指数衰减 - 更陡峭的高端衰减
+        // float attenuationFactor = Mathf.Exp(-current_anxiety * 2);
+
+        // 应用衰减
+        float adjustedDelta = deltaFromLLM * attenuationFactor;
+
+        // 确保调整后的delta仍在合理范围内
+        adjustedDelta = Mathf.Clamp(adjustedDelta, -0.3f, 0.3f);
+
+        // 更新焦虑值
+        current_anxiety = Mathf.Clamp01(current_anxiety + adjustedDelta);
+        // ===== 核心改进结束 =====
 
         // 记录对话
         dialogue_history.Add(new DialogueTurn
@@ -75,19 +109,19 @@ public class PatientState
             patient = patientSpeech,
             anxiety_before = oldAnxiety,
             anxiety_after = current_anxiety,
+            delta_raw = deltaFromLLM,
+            delta_attenuated = adjustedDelta,
+            attenuation_factor = attenuationFactor,
             understands = understands,
             timestamp = DateTime.Now
         });
 
-        // 简单症状提取（示例：如果医生问症状，患者回答中包含症状描述）
-        if (doctorSpeech.Contains("什么症状") || doctorSpeech.Contains("哪里不舒服"))
-        {
-            // 这里可以添加自然语言处理，简单起见只记录有症状对话轮次
-            symptoms_mentioned.Add($"Turn {conversation_turn}: {patientSpeech}");
-        }
-
-        Debug.Log($"State updated - Turn {conversation_turn}: " +
-                 $"Anxiety {oldAnxiety:F2} → {current_anxiety:F2} ({GetAnxietyLevel()})");
+        // 详细日志
+        Debug.Log($"Turn {conversation_turn}: " +
+                 $"Raw Δ={deltaFromLLM:F3}, " +
+                 $"Attenuation={attenuationFactor:F3}, " +
+                 $"Adjusted Δ={adjustedDelta:F3}, " +
+                 $"Anxiety: {oldAnxiety:F3} → {current_anxiety:F3} ({GetAnxietyLevel()})");
     }
 
     // 获取焦虑等级
@@ -208,26 +242,16 @@ public class DialogueTurn
     public string patient;
     public float anxiety_before;
     public float anxiety_after;
+    public float delta_raw;           // LLM返回的原始delta
+    public float delta_attenuated;     // 衰减后的实际delta
+    public float attenuation_factor;   // 衰减因子
     public bool understands;
     public DateTime timestamp;
-}
 
-// 注意：CaseData类应该单独放在一个文件里
-[Serializable]
-public class CaseData
-{
-    public string case_id;
-    public string case_name;
-    public string personality;
-    public PersonalityParams personality_params;
-    public float initial_anxiety;
-    public string symptoms;
-}
-
-[Serializable]
-public class PersonalityParams
-{
-    public float base_anxiety_decay;
-    public int response_length_min;
-    public int response_length_max;
+    // 方便查看的摘要
+    public string GetSummary()
+    {
+        return $"Turn {turn}: Anxiety {anxiety_before:F2}→{anxiety_after:F2} " +
+               $"(Δ raw={delta_raw:F2}, atten={attenuation_factor:F2}→{delta_attenuated:F2})";
+    }
 }

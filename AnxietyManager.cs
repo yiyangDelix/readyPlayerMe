@@ -24,22 +24,6 @@ public class AnxietyManager : MonoBehaviour
         Initialize(json);
     }
 
-    public void UpdateAnxiety(float deltaFromLLM, string anxietyLevelFromLLM,
-                              string doctorSpeech, string patientSpeech, bool understands)
-    {
-        if (patientState == null)
-        {
-            Debug.LogError("PatientState not initialized!");
-            return;
-        }
-
-        // 更新状态
-        patientState.UpdateState(deltaFromLLM, doctorSpeech, patientSpeech, understands);
-
-        // 更新动画
-        UpdateAvatarAnimation(anxietyLevelFromLLM);
-    }
-
     public string GeneratePrompt(string doctorSpeech)
     {
         if (patientState == null)
@@ -56,29 +40,32 @@ public class AnxietyManager : MonoBehaviour
         return patientState?.GetResponseLengthRange() ?? new Vector2Int(0, 100);
     }
 
-    private void UpdateAvatarAnimation(string anxietyLevelFromLLM)
+    public void UpdateAnxiety(float deltaFromLLM, string anxietyLevelFromLLM,
+                          string doctorSpeech, string patientSpeech, bool understands)
     {
-        if (avatarAnimator == null) return;
-
-        // 使用LLM返回的文字等级
-        switch (anxietyLevelFromLLM)
+        if (patientState == null)
         {
-            case "none":
-                avatarAnimator.SetFloat("AnxietyBlend", 0.0f);
-                break;
-            case "mild":
-                avatarAnimator.SetFloat("AnxietyBlend", 0.33f);
-                break;
-            case "significant":
-                avatarAnimator.SetFloat("AnxietyBlend", 0.66f);
-                break;
-            case "extreme":
-                avatarAnimator.SetFloat("AnxietyBlend", 1.0f);
-                break;
+            Debug.LogError("PatientState not initialized!");
+            return;
         }
 
-        // 同时传入实际数值
-        avatarAnimator.SetFloat("AnxietyValue", patientState?.current_anxiety ?? 0.5f);
+        // 记录变化前的焦虑值用于日志
+        float oldAnxiety = patientState.current_anxiety;
+
+        // 更新状态（内部已经包含衰减机制）
+        patientState.UpdateState(deltaFromLLM, anxietyLevelFromLLM,
+                                doctorSpeech, patientSpeech, understands);
+
+        // 可以在这里添加额外的业务逻辑
+        // 例如：如果焦虑值超过阈值，触发特殊动画
+        if (oldAnxiety < 0.8f && patientState.current_anxiety >= 0.8f)
+        {
+            Debug.Log("Patient reached extreme anxiety level!");
+            // 触发特殊动画或事件
+        }
+
+        // 更新动画
+        UpdateAvatarAnimation(anxietyLevelFromLLM);
     }
 
     // 调试方法：导出对话记录
