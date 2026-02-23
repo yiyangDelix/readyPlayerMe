@@ -1,11 +1,8 @@
-using CaseData;
-using PersonalityParams;
+using System;
+using System.Collections.Generic;
+using UnityEngine;
 
-
-
-// 负责管理患者的焦虑状态，提供接口供LLMService调用，并控制动画表现
-// 和PatientState的区别：PatientState是纯数据类，包含患者的状态和逻辑
-// AnxietyManager是MonoBehaviour组件，负责与Unity交互，控制动画，并提供接口供LLMService调用。
+// 这个类：管理患者状态，处理焦虑值更新，生成对话提示，并与动画系统交互。
 public class AnxietyManager : MonoBehaviour
 {
     [Header("Components")]
@@ -64,14 +61,6 @@ public class AnxietyManager : MonoBehaviour
         patientState.UpdateState(deltaFromLLM, anxietyLevelFromLLM,
                                 doctorSpeech, patientSpeech, understands);
 
-        // 可以在这里添加额外的业务逻辑
-        // 例如：如果焦虑值超过阈值，触发特殊动画
-        if (oldAnxiety < 0.8f && patientState.current_anxiety >= 0.8f)
-        {
-            Debug.Log("Patient reached extreme anxiety level!");
-            // 触发特殊动画或事件
-        }
-
         // 更新动画
         UpdateAvatarAnimation(anxietyLevelFromLLM);
     }
@@ -86,5 +75,28 @@ public class AnxietyManager : MonoBehaviour
 
         // 可选：保存到文件
         System.IO.File.WriteAllText(Application.dataPath + $"/Logs/{patientState.case_name}_log.txt", log);
+    }
+
+
+    private void UpdateAvatarAnimation(string anxietyLevel)
+    {
+        if (avatarAnimator == null) return;
+
+        // 简单示例：根据焦虑等级设置不同的动画状态
+        switch (anxietyLevel.ToLower())
+        {
+            case "mild":
+                avatarAnimator.SetFloat("AnxietyLevel", 0.3f);
+                break;
+            case "moderate":
+                avatarAnimator.SetFloat("AnxietyLevel", 0.6f);
+                break;
+            case "severe":
+                avatarAnimator.SetFloat("AnxietyLevel", 1.0f);
+                break;
+            default:
+                avatarAnimator.SetFloat("AnxietyLevel", 0.5f);
+                break;
+        }
     }
 }

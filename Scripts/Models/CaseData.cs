@@ -1,5 +1,8 @@
+using System;
+using UnityEngine;
 
-// 注意：CaseData类应该单独放在一个文件里
+
+// 这个类：映射JSON病例文件的结构，包含患者的基本信息、人格特质参数、初始焦虑值和症状描述等字段，供LLMService加载和使用。
 [Serializable]
 public class CaseData
 {

@@ -2,11 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
-using CaseData;
-using PersonalityParams;
 
-
-// 负责管理患者的焦虑状态，提供接口供LLMService调用，并控制动画表现
+// 这个类：维护患者所有状态（焦虑值、对话历史、SPIKES进度），提供更新状态的方法，并生成对话提示词供LLM使用。
+// 负责管理患者的焦虑状态，提供接口供LLMService调用，并控制动画表现 --- IGNORE ---
+// 和PatientState的区别：PatientState是纯数据类，包含患者的状态和逻辑 --- IGNORE ---
+// AnxietyManager是MonoBehaviour组件，负责与Unity交互，控制动画，并提供接口供LLMService调用。 --- IGNORE ---
 [Serializable]
 public class PatientState
 {

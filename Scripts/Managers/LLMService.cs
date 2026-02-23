@@ -4,12 +4,9 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Networking;
 using System.Text;
-using CaseData;
-using PersonalityParams;
-using PatientResponse;
+using System.Threading.Tasks;
 
-
-// 负责与LLM交互，获取患者回应，并将结果传递给AnxietyManager
+// 这个类：集成LLM和关键词分析，提供一个统一的接口供外部调用，处理与LLM的通信，并将结果传递给AnxietyManager进行状态更新。
 public class LLMService : MonoBehaviour
 {
     [Header("Configuration")]
@@ -114,4 +111,27 @@ public class LLMService : MonoBehaviour
             anxietyManager.Initialize(currentCase);
         }
     }
+
+    // 调用LLM的实际方法
+    private async Task<string> CallLLM(string prompt)
+    {
+        if (string.IsNullOrEmpty(apiUrl))
+        {
+            Debug.LogError("API URL is not set!");
+            return "Error: API URL not set";
+            var requestData = new
+            {
+                model = "gpt-3.5-turbo",
+                messages = new[]
+                {
+                new { role = "system", content = systemPromptTemplate },
+                new { role = "user", content = prompt }
+            },
+                max_tokens = 500,
+                temperature = 0.7f
+            };
+        }
+    }
+
+
 }
